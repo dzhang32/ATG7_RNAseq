@@ -35,7 +35,7 @@ foreach(i=1:nrow(mito_samp_metadata_tidy)) %dopar% {
 
 ##### Check matrix is as expected #####
 
-gene_count_test <- read_delim("results/get_gene_count_RSE/control_1.gene_tpm.gct", 
+gene_count_test <- read_delim("results/get_gene_count_RSE/control_1.gene_reads.gct", 
                               delim = "\t", skip = 2)
 
 summary(gene_count_test$control_1)
@@ -49,11 +49,11 @@ rm(gene_count_test)
 
 ##### Merge all patient gene counts #####
 
-gene_tpm_paths <- list.files("results/get_gene_count_RSE/", pattern = "gene_tpm", full.names = TRUE)
+gene_count_paths <- list.files("results/get_gene_count_RSE/", pattern = "gene_reads", full.names = TRUE)
 
-for(i in seq_along(gene_tpm_paths)){
+for(i in seq_along(gene_count_paths)){
   
-  gene_counts <- read_delim(gene_tpm_paths[i], 
+  gene_counts <- read_delim(gene_count_paths[i], 
                             delim = "\t", skip = 2)
   
   if(i == 1){
@@ -97,10 +97,10 @@ stopifnot(identical(mito_samp_metadata_tidy[["samp_id_tidy"]] %>% as.character()
 
 # make sure order of 
 
-gene_tpm_rse <- SummarizedExperiment::SummarizedExperiment(rowRanges = gene_info, 
+gene_counts_rse <- SummarizedExperiment::SummarizedExperiment(rowRanges = gene_info, 
                                                            colData = mito_samp_metadata_tidy,
-                                                           assays = list(tpm = gene_counts_mat))
+                                                           assays = list(count = gene_counts_mat))
 
 # Save data ---------------------------------------------------------------
 
-save(gene_tpm_rse, file = "results/get_gene_count_RSE/gene_tpm_rse.rda")s
+save(gene_counts_rse, file = "results/get_gene_count_RSE/gene_counts_rse.rda")
