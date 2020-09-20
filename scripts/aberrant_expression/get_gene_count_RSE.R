@@ -8,6 +8,31 @@ load("/home/dzhang/projects/RNA_seq_diag_mito/results/tidy_samp_metadata/mito_sa
 
 ref <- dasper:::.ref_load(ref = "/data/references/ensembl/gtf_gff3/v97/Homo_sapiens.GRCh38.97.gtf")
 
+# Functions ---------------------------------------------------------------
+
+add_pt_sex <- function(gene_counts_rse, ref){
+  
+  sex_genes <- GenomicFeatures::genes(ref, filter = list(gene_id = c("ENSG00000067048", "ENSG00000229807")))
+  
+  gene_counts_rse$sex <- as.character(NA)
+  
+  for(i in seq_len(dim(gene_counts_rse)[2])){
+    
+    sex_genes_cov <- rtracklayer::import(gene_counts_rse$bw_path[i], which = sex_genes, as = "NumericList") %>% sum()
+    
+    stopifnot(sum(sex_genes_cov) > 0)
+    
+    gene_counts_rse$sex[i] <- 
+      ifelse(sex_genes_cov["ENSG00000229807"] > sex_genes_cov["ENSG00000067048"], 
+             "female", "male") %>% 
+      unname()
+    
+  }
+  
+  return(gene_counts_rse)
+  
+}
+
 # Main --------------------------------------------------------------------
 
 ##### Generate gene count matrices #####
@@ -95,11 +120,18 @@ mito_samp_metadata_tidy <- mito_samp_metadata_tidy %>%
 stopifnot(identical(mito_samp_metadata_tidy[["samp_id_tidy"]] %>% as.character(), 
                     colnames(gene_counts_mat)))
 
-# make sure order of 
-
+# convert gene counts into an RSE
 gene_counts_rse <- SummarizedExperiment::SummarizedExperiment(rowRanges = gene_info, 
                                                            colData = mito_samp_metadata_tidy,
                                                            assays = list(count = gene_counts_mat))
+
+##### add patient sexes #####
+
+gene_counts_rse <- add_pt_sex(gene_counts_rse, ref)
+
+##### add batch #####
+
+gene_counts_rse$batch <- ifelse(str_detect(gene_counts_rse$bw_path, "mito_add_pos_ctrls"), 2, 1)
 
 # Save data ---------------------------------------------------------------
 
