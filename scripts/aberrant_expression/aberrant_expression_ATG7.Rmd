@@ -1,0 +1,614 @@
+---
+title: "Aberrant expression detection in ATG7 patients"
+author: "David Zhang"
+output: 
+  html_document:
+    code_folding: hide
+    theme: spacelab
+    highlight: kate
+    df_print: paged
+    toc: true
+    toc_float: true
+    number_sections: true
+---
+
+```{r setup, include = FALSE}
+
+library(tidyverse)
+library(SummarizedExperiment)
+
+knitr::opts_chunk$set(echo = T, message = F, warning = F)
+
+```
+
+> Aim: Detect aberrantly expressed genes and pathways in ATG7 patients
+
+# Background 
+
+## OUTRIDER
+
+- [OUTRIDER](https://www.bioconductor.org/packages/release/bioc/html/OUTRIDER.html) is a bioinformatics software that aims at detecting aberrantly expressed genes from RNA-seq data. It is specifically designed for a rare disease context through correcting for co-variations that are not known a-priori using an autoencoder. This is claimed to help distinguish outliers more readily. OUTRIDER then applies a negative binomial test to find outlier expressed genes. 
+- Previous analysis using *OUTRIDER* has demonstrated that it's autoencoder correction looks to overcorrect the RNA-seq data when controls are obtained through a different sequencing protocol (GTEx vs in-house). This resulted in all patient samples having mitochondrial pathway genes enriched for dysruptions. However, upon testing an in-house sample without expected mitochondrial disease, the same enriched pathways were discovered. Overall, this suggests that *OUTRIDER* was entirely picking up on technical differences rather than biological. 
+- Now, we have sequenced **5** (1 replicate) patients with *ATG7* mutations and have **~50** in-house sequenced controls. Although these controls have differing batches and some, originate from different sequencing companies they have matching sequencing depth, length and library construction. If the technical differences look to be the promiment result still, we can narrow now the cohort to only those samples sequenced in the last batch (~20 samples).
+
+## DESeq2
+
+- DESeq2 models reads using a negative binomial distribution, similar to OUTRIDER. DESeq2 internally normalises gene counts for library size and sex + batch of samples were used as a covariate. A binomial test was used to determine the abnormality of each genes expression with the ATG7 patients, compared to the expression within the remaining patients. 
+
+# Method
+
+1. Obtain a gene count matrix using ~~`GenomicAlignment::summarizedOverlaps`~~ via RNA-SEQC (matching the GTEx protocol).
+2. Generate patient sex via coverage across *XIST* & *DDX3Y* and mark batches. 
+3. Run OUTRIDER on ATG7 samples with either all remaining patients (50) or only those of batch 2 (20): 
+    i. Filter genes by expression
+    ii. Find optimal encoding dimension
+    iii. Correct counts using autoencoder
+    iv. Obtain p-values using negative binomial test
+4. Run DESeq2 
+3. Run gene-set enrichment analysis
+
+# Obtain gene count matrix
+
+- Foremost, we need to obtain the gene counts for patients. Here, we will follow the GTEx protocol as described here: https://gtexportal.org/home/documentationPage#AboutData. This involves using GENCODE v26 (which we will switch for Ensembl v97) and counting up counts across genes using RNA-SEQC. 
+
+## Generate genes-only version of Ensembl gtf
+
+```{bash, eval = FALSE}
+
+cd /tools
+git clone https://github.com/broadinstitute/gtex-pipeline
+chmod -R 775 gtex-pipeline
+
+# generate the genes gtf
+/tools/gtex-pipeline/gene_model/collapse_annotation.py \
+/data/references/ensembl/gtf_gff3/v97/Homo_sapiens.GRCh38.97.gtf \
+/data/references/ensembl/gtf_gff3/v97/Homo_sapiens.GRCh38.97.genes.gtf
+
+```
+
+## RNA-SEQC
+
+- This script generates a gene count matrix across all Ensembl genes using 
+
+```{r, eval = FALSE}
+
+source("/home/dzhang/projects/ATG7_rob_t_analysis/scripts/aberrant_expression/get_gene_count_RSE.R")
+
+```
+
+# Patient metadata
+
+```{r}
+
+load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/gene_count_ods.rda")
+
+colData(gene_count_ods) %>% 
+  as.data.frame() %>% 
+  as_tibble()
+
+```
+
+# ATG7 expression across samples
+
+- Let's first have a quick check of the expression of ATG7 across samples with ATG7 mutations vs controls. 
+
+```{r}
+
+load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/gene_count_ods.rda")
+
+which_ATG7 <- which(colData(gene_count_ods)[["gene_name"]] == "ATG7")
+which_control <-  which(str_detect(colData(gene_count_ods)[["samp_id_tidy"]], "control"))
+
+ATG7_only_ods <- gene_count_ods[names(gene_count_ods) == "ENSG00000197548" , c(which_ATG7, which_control)]
+
+assays(ATG7_only_ods)[["fpkm"]] %>% 
+  as.data.frame() %>% 
+  gather(key = "samp_id", value = "fpkm")  %>% 
+  mutate(family = c(2, 2, 3, 4, 1, 1, "control", "control")) %>% 
+  ggplot(aes(x = samp_id, y = fpkm, fill = as.character(family))) + 
+  geom_col(colour = "black") + 
+  scale_x_discrete(name = "Sample ID") + 
+  scale_y_continuous(name = "FPKM") + 
+  scale_fill_manual(name = "Family", 
+                    values = ggpubr::get_palette("npg", 5)) +
+  theme_bw()
+
+```
+
+- Family 1 and 2 look to have significantly lower expression of the ATG7 gene. 
+
+# OUTRIDER 
+
+- We will run OUTRIDER either using all remaining 50 patients as controls or using the 20 (in the second batch). The latter analysis ensures that there will be no batch differences between cases/controls and matches the proposed usage of OUTRIDER in their paper. 
+- I have masked samples that have the same pathogenic mutation when finding the optimal encoding dimension as OUTRIDER assumes "unrelated" samples. They also give this as an example in their workflow (https://www.bioconductor.org/packages/release/bioc/vignettes/OUTRIDER/inst/doc/OUTRIDER.pdf). 
+
+## 50 controls (different batches included){.tabset}
+
+```{r}
+
+load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/ATG7_res_all.rda")
+load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/gene_count_corrected_example.rda")
+load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/gene_count_ods.rda")
+
+```
+
+### Filter by expression 
+
+- There are `r length(gene_count_ods)` genes remaining after filtering by expression. 
+
+```{r }
+knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/FPKM.png")
+knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/expressed_genes.png")
+```
+
+### Pre-correction gene count heatmaps
+
+```{r }
+knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/count_cor_pre_correction.png")
+knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/count_gene_sample_pre_correction.png")
+```
+
+### Post-correction gene count heatmaps
+
+Here, I have included one example. In reality, there's plots like these for each ATG7 sample as I have re-run each ATG7 with the other ATG7 samples removed. 
+
+```{r}
+knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/count_cor_post_correction_M0920.18.png")
+knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/count_gene_sample_post_correction_M0920.18.png")
+```
+
+- It still looks like the count correlations are tagging the batch of the sequencing. 
+
+### OUTRIDER results
+
+- I have used the FDR method for multiple test correction across every gene tested across all samples. 
+
+```{r}
+
+which_ATG7 <- which(colData(gene_count_ods)[["gene_name"]] == "ATG7")
+ATG7_samp_ids <- colData(gene_count_ods)[["samp_id_tidy"]][which_ATG7] %>% 
+  as.character()
+
+stopifnot(all(ATG7_samp_ids %in% ATG7_res_all$sampleID))
+
+ATG7_res_ATG7_only <- ATG7_res_all %>% 
+  filter(sampleID %in% ATG7_samp_ids) %>%
+  mutate(padjust = p.adjust(pValue, method = "fdr")) %>% 
+  dplyr::select(Description, everything())
+  
+
+```
+
+- There are 1102 genes with outlier expression. 
+
+```{r}
+
+ATG7_res_ATG7_only_signif <- ATG7_res_ATG7_only %>% 
+  filter(padjust <= 0.05) %>% 
+  dplyr::select(Description, everything())
+
+ATG7_res_ATG7_only_signif 
+
+ATG7_res_ATG7_only %>% 
+  group_by(sampleID) %>% 
+  mutate(rank = rank(padjust)) %>% 
+  group_by(Description) %>% 
+  mutate(mean_rank = mean(rank)) %>% 
+  arrange(mean_rank)
+
+```
+
+- The number of signif genes per ATG7 sample
+
+```{r}
+
+ATG7_res_ATG7_only_signif$sampleID %>% table()
+
+```
+
+- ATG7 comes up as an outlier expressed gene only in M1856.17/S2557. 
+
+```{r}
+
+ATG7_res_ATG7_only_signif %>% 
+  filter(Description == "ATG7")
+
+```
+
+- Are there any genes that are outliers in common across ATG7_samples
+
+```{r}
+
+ATG7_res_ATG7_only_signif %>% 
+  dplyr::count(Description) %>% 
+  filter(n > 1) %>% 
+  arrange(desc(n)) 
+
+```
+
+- There are no outlier genes detected in either of the control samples, which is reassuring. 
+
+```{r}
+
+ATG7_res_all %>% 
+  filter(str_detect(sampleID, "control")) %>% 
+  mutate(padjust =  p.adjust(pValue, method = "fdr")) %>% 
+  filter(padjust <= 0.05)
+
+```
+
+- As a double check, how many of the ATG7 outliers are common to any of the remaining patient samples. 
+
+```{r}
+
+signif_genes_remaining_samp <- ATG7_res_all %>% 
+  filter(!(sampleID %in% ATG7_samp_ids)) %>% 
+  mutate(padjust =  p.adjust(pValue, method = "fdr")) %>% 
+  filter(padjust <= 0.05) %>% 
+  .[["Description"]]
+
+mean(unique(ATG7_res_ATG7_only_signif$Description) %in% unique(signif_genes_remaining_samp))
+
+```
+
+### Gene-set enrichment
+
+- Here, I have used a unranked gprofiler test of all significant genes across ATG7 with the background genes as all genes that have been tested through OUTRIDER. 
+
+```{r}
+
+hits_gprofiler <- 
+  gprofiler2::gost(query = unique(ATG7_res_ATG7_only_signif %>% 
+                                    arrange(padjust) %>% 
+                                    .[["geneID"]]), 
+                   organism = "hsapiens", 
+                   ordered_query = F, 
+                   significant = T, 
+                   user_threshold = 0.05, 
+                   correction_method = c("g_SCS"),
+                   domain_scope = c("custom"),
+                   custom_bg = unique(ATG7_res_all$geneID),
+                   sources = c("GO", "KEGG", "REAC"), 
+                   evcodes = F)
+
+gprofiler2::gostplot(hits_gprofiler)
+
+```
+
+### Autophagy genes
+
+- How many known autophagy genes that are part of the KEGG pathway are found amongst the ATG7 outliers?
+
+```{r}
+
+library(KEGGREST)
+
+query_kegg_pathway <- function(pathway_name, organism = "hsa"){
+  
+  # get all pathways associated with humans 
+  all_pathways <- keggList("pathway", organism)
+  
+  # filter to only selected pathway and get information about it
+  selected_pathway <- all_pathways[str_detect(all_pathways, pathway_name)]
+  
+  print(str_c("Getting info for the pathways: ", unname(selected_pathway) %>% str_c(collapse = ", ")))
+  
+  
+  selected_pathway_info <- keggGet(names(selected_pathway))
+  
+  return(selected_pathway_info)
+  
+}
+
+get_pathway_gene_info <- function(kegg_pathway_info, organism = "hsa"){
+  
+  pathway_gene_info_all <- tibble()
+  
+  for(i in 1:length(kegg_pathway_info)){
+    
+    odds <- (1:length(kegg_pathway_info[[i]]$GENE))[(1:length(kegg_pathway_info[[i]]$GENE) %% 2) != 0]
+    evens <- (1:length(kegg_pathway_info[[i]]$GENE))[(1:length(kegg_pathway_info[[i]]$GENE) %% 2) == 0]
+    
+    pathway_gene_info <- 
+      tibble(pathway_kegg_code = kegg_pathway_info[[i]]$ENTRY, 
+             pathway_name = kegg_pathway_info[[i]]$NAME, 
+             organism = organism, 
+             kegg_gene_entry = kegg_pathway_info[[i]]$GENE[odds], 
+             gene = kegg_pathway_info[[i]]$GENE[evens]) %>% 
+      separate(col = "gene", into = c("gene_name", "gene_desc"), sep = "; ")
+    
+    pathway_gene_info_all <- pathway_gene_info_all %>% bind_rows(pathway_gene_info)
+    
+  }
+  
+  # for(i in 1:nrow(pathway_gene_info)){ 
+  #   
+  #   gene_info <- keggGet(str_c(organism, ":", pathway_gene_info$kegg_gene_entry)[i])
+  #   pathway_gene_info$gene_identifiers[i] <- gene_info[[1]]$DBLINKS %>% str_c(collapse = ";")
+  # 
+  # }
+
+  return(pathway_gene_info_all)
+  
+}
+
+autophagy_kegg_info <- query_kegg_pathway(pathway_name = "Autophagy", organism = "hsa")
+
+autophagy_gene_info <- get_pathway_gene_info(kegg_pathway_info = autophagy_kegg_info, organism = "hsa")
+
+autophagy_gene_info$gene_name %>% unique()
+
+```
+
+- RAB39B comes up as upregulared in one patient (M0921.18). Though this is different from the RAB9 suggested by Jack. 
+
+```{r}
+
+ATG7_res_ATG7_only_signif[ATG7_res_ATG7_only_signif$Description %in% unique(autophagy_gene_info$gene_name),]
+
+```
+
+- NFE2L2 does not look to have abnormal expression.  
+
+```{r}
+
+ATG7_res_ATG7_only %>% 
+  filter(Description == "NFE2L2")
+
+```
+
+## 20 controls (identical batch){.tabset}
+
+```{r}
+
+load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/ATG7_res_all.rda")
+load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/gene_count_corrected_example.rda")
+load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/gene_count_ods.rda")
+
+```
+
+### Filter by expression 
+
+- There are `r length(gene_count_ods)` genes remaining after filtering by expression. 
+
+```{r }
+knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/FPKM.png")
+knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/expressed_genes.png")
+```
+
+### Pre-correction gene count heatmaps
+
+```{r }
+knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/count_cor_pre_correction.png")
+knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/count_gene_sample_pre_correction.png")
+```
+
+### Encoding dimension optimisation
+
+```{r}
+
+plotEncDimSearch(gene_count_ods)
+
+```
+
+### Post-correction gene count heatmaps
+
+Here, I have included one example. In reality, there's plots like these for each ATG7 sample as I have re-run each ATG7 with the other ATG7 samples removed. 
+
+```{r}
+knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/count_cor_post_correction_M0920.18.png")
+knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/count_gene_sample_post_correction_M0920.18.png")
+```
+
+### OUTRIDER results
+
+- I have used the FDR method for multiple test correction across every gene tested across all samples. 
+
+```{r}
+
+which_ATG7 <- which(colData(gene_count_ods)[["gene_name"]] == "ATG7")
+ATG7_samp_ids <- colData(gene_count_ods)[["samp_id_tidy"]][which_ATG7] %>% 
+  as.character()
+
+stopifnot(all(ATG7_samp_ids %in% ATG7_res_all$sampleID))
+
+ATG7_res_ATG7_only <- ATG7_res_all %>% 
+  filter(sampleID %in% ATG7_samp_ids) %>%
+  mutate(padjust = p.adjust(pValue, method = "fdr")) %>% 
+  dplyr::select(Description, everything())
+  
+
+```
+
+- There are 251 genes with outlier expression. 
+
+```{r}
+
+ATG7_res_ATG7_only_signif <- ATG7_res_ATG7_only %>% 
+  filter(padjust <= 0.05) %>% 
+  dplyr::select(Description, everything())
+
+ATG7_res_ATG7_only_signif
+
+```
+
+- All significant outliers are attributed to one sample. 
+
+```{r}
+
+ATG7_res_ATG7_only_signif$sampleID %>% table()
+
+```
+
+- Now ATG7 is not an outlier anymore (does not survive FDR correction). I think that this suggests using 20 samples as controls has not worked as well as ATG7 we can see in the expression plots looks to be severely underexpressed in M1856.7.
+
+```{r}
+
+ATG7_res_ATG7_only %>% 
+  filter(Description == "ATG7")
+
+```
+
+- As a double check, how many of the ATG7 outliers are common to any of the remaining patient samples. 
+
+```{r}
+
+signif_genes_remaining_samp <- ATG7_res_all %>% 
+  filter(!(sampleID %in% ATG7_samp_ids)) %>% 
+  mutate(padjust =  p.adjust(pValue, method = "fdr")) %>% 
+  filter(padjust <= 0.05) %>% 
+  .[["Description"]]
+
+mean(unique(ATG7_res_ATG7_only_signif$Description) %in% unique(signif_genes_remaining_samp))
+
+```
+
+### Gene-set enrichment
+
+```{r}
+
+hits_gprofiler <- 
+  gprofiler2::gost(query = unique(ATG7_res_ATG7_only_signif %>% 
+                                    arrange(padjust) %>% 
+                                    .[["geneID"]]), 
+                   organism = "hsapiens", 
+                   ordered_query = F, 
+                   significant = T, 
+                   user_threshold = 0.05, 
+                   correction_method = c("g_SCS"),
+                   domain_scope = c("custom"),
+                   custom_bg = unique(ATG7_res_all$geneID),
+                   sources = c("GO", "KEGG", "REAC"), 
+                   evcodes = F)
+
+hits_gprofiler$result
+
+gprofiler2::gostplot(hits_gprofiler)
+
+```
+
+### Autophagy genes
+
+- How many known autophagy genes that are part of the KEGG pathway are found amongst the ATG7 outliers?
+- RAB39B comes up as upregulared in one patient (M0921.18). Though this is different from the RAB9 suggested by Jack. 
+
+```{r}
+
+ATG7_res_ATG7_only_signif[ATG7_res_ATG7_only_signif$Description %in% unique(autophagy_gene_info$gene_name),]
+
+```
+
+- NFE2L2 does not look to have abnormal expression.  
+
+```{r}
+
+ATG7_res_ATG7_only %>% 
+  filter(Description == "NFE2L2")
+
+```
+
+# DESeq2
+
+- Based on the few number of significant hits from OUTRIDER (that limits our ability to run gene-set enrichment analysis), I believe that OUTRIDER may be over conservative when looking for differentially expressed pathways. As some perturbed genes may be differentially expressed, however not to the extent of being an outlier.
+- I have run DESeq2 using all ATG7 patients as cases vs the remaining patients (~50) with the goal of finding overall pathways that are changed common to the ATG7 patients. 
+- For the covariate correction, here I have used sex/batch and library size. 
+
+```{r}
+
+load(file = "/home/dzhang/projects/ATG7_rob_t_analysis/results/DESeq2/ATG7_deseq2_res.rda")
+
+```
+
+## Differentially expressed genes
+
+- There are 12,339 differentially expressed genes. 
+- ATG7 a hit, however it looks to be slightly upregulated (we know from the above that at least one patient has a lower expressed of ATG7).  
+
+```{r}
+
+load(file = "/home/dzhang/projects/ATG7_rob_t_analysis/results/DESeq2/ATG7_deseq2_res.rda")
+
+library(tidyverse)
+
+ATG7_deseq2_res %>% 
+  dplyr::arrange(desc(log2FoldChange))
+
+ATG7_deseq2_res %>% 
+  ggplot(aes(log2FoldChange, -log(padj))) + 
+  geom_point() + 
+  scale_x_continuous(limits = c(-10, 10)) + 
+  scale_y_continuous(limits = c(0, 12.5))
+
+ATG7_deseq2_res %>% 
+  dplyr::filter(abs(log2FoldChange) >= 1)
+
+ATG7_deseq2_res %>% 
+  filter(Description == "ATG7")
+
+```
+
+## Gene-set enrichment
+
+### ATG7 patients
+
+- Here, I have tried using both the ranked (based on p-value) method and also the unranked. Below are the results shown for the *ranked* method as these gave a more mitochondrial result. 
+- We have 448 significantly dysregulated pathways. Mitochondrial pathways are the top 2 hits with other mitochondrial related pathways amongst the significant hits. 
+- There are no "autophagy" pathways with these hits
+
+```{r}
+
+load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/ATG7_res_all.rda")
+
+
+
+hits_gprofiler <- 
+  gprofiler2::gost(query = ATG7_deseq2_res %>% 
+                     arrange(pvalue) %>% 
+                     .[["Description"]], 
+                   organism = "hsapiens", 
+                   ordered_query = T, 
+                   significant = T, 
+                   user_threshold = 0.05, 
+                   correction_method = c("g_SCS"),
+                   domain_scope = c("custom"),
+                   custom_bg = unique(ATG7_res_all$geneID),
+                   sources = c("GO", "KEGG", "REAC"), 
+                   evcodes = F)
+
+hits_gprofiler$result %>% 
+  as_tibble() 
+
+gprofiler2::gostplot(hits_gprofiler)
+
+```
+
+### Control samples
+
+- The previous set of results were purely tagging the effect of batch variation. Here, I have also reun DESeq2 on the 2 COL6A samples as a negative control. 
+- The results, reassuringly, look to be completely different. 
+
+```{r}
+
+load(file = "/home/dzhang/projects/ATG7_rob_t_analysis/results/DESeq2/COL6A_deseq2_res.rda")
+
+hits_gprofiler <- 
+  gprofiler2::gost(query = COL6A_deseq2_res %>% 
+                     arrange(pvalue) %>% 
+                     .[["Description"]], 
+                   organism = "hsapiens", 
+                   ordered_query = T, 
+                   significant = T, 
+                   user_threshold = 0.05, 
+                   correction_method = c("g_SCS"),
+                   domain_scope = c("custom"),
+                   custom_bg = unique(ATG7_res_all$geneID),
+                   sources = c("GO", "KEGG", "REAC"), 
+                   evcodes = F)
+
+hits_gprofiler$result %>% 
+  as_tibble()
+
+gprofiler2::gostplot(hits_gprofiler)
+
+```
+
