@@ -96,21 +96,32 @@ colData(gene_count_ods) %>%
 
 load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/gene_count_ods.rda")
 
+# get samp ids of ATG7 patients
 which_ATG7 <- which(colData(gene_count_ods)[["gene_name"]] == "ATG7")
-which_control <-  which(str_detect(colData(gene_count_ods)[["samp_id_tidy"]], "control"))
+which_ATG7 <- colData(gene_count_ods)[["samp_id_tidy"]][which_ATG7] %>% 
+  as.character()
 
-ATG7_only_ods <- gene_count_ods[names(gene_count_ods) == "ENSG00000197548" , c(which_ATG7, which_control)]
+ATG7_only_ods <- gene_count_ods[names(gene_count_ods) == "ENSG00000197548" , ]
 
-assays(ATG7_only_ods)[["fpkm"]] %>% 
+ATG7_expr_to_plot <- 
+  assays(ATG7_only_ods)[["fpkm"]] %>% 
   as.data.frame() %>% 
   gather(key = "samp_id", value = "fpkm")  %>% 
-  mutate(family = c(2, 2, 3, 4, 1, 1, "control", "control")) %>% 
-  ggplot(aes(x = samp_id, y = fpkm, fill = as.character(family))) + 
-  geom_col(colour = "black") + 
-  scale_x_discrete(name = "Sample ID") + 
+  mutate(ATG7_patient = samp_id %in% which_ATG7) 
+
+pos <- position_jitterdodge( seed = 1)
+
+ATG7_expr_to_plot %>% 
+  ggplot(aes(x = ATG7_patient, y = fpkm, fill = ATG7_patient)) + 
+  geom_boxplot() +
+  geom_point(position = pos) + 
+  ggrepel::geom_label_repel(data = ATG7_expr_to_plot %>% 
+                              dplyr::filter(ATG7_patient), 
+                            aes(label = samp_id),
+                            position = pos) + 
+  scale_x_discrete(name = "ATG7 Patient") + 
   scale_y_continuous(name = "FPKM") + 
-  scale_fill_manual(name = "Family", 
-                    values = ggpubr::get_palette("npg", 5)) +
+  scale_fill_manual(values = ggpubr::get_palette("npg", 2)) +
   theme_bw()
 
 ```
