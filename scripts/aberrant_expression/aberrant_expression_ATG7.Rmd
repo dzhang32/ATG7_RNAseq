@@ -72,7 +72,7 @@ chmod -R 775 gtex-pipeline
 
 ```{r, eval = FALSE}
 
-source("/home/dzhang/projects/ATG7_rob_t_analysis/scripts/aberrant_expression/get_gene_count_RSE.R")
+source(here::here("scripts/aberrant_expression/get_gene_count_RSE.R"))
 
 ```
 
@@ -80,7 +80,7 @@ source("/home/dzhang/projects/ATG7_rob_t_analysis/scripts/aberrant_expression/ge
 
 ```{r}
 
-load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/gene_count_ods.rda")
+load(here::here("results/OUTRIDER/50_controls/gene_count_ods.rda"))
 
 colData(gene_count_ods) %>% 
   as.data.frame() %>% 
@@ -94,7 +94,7 @@ colData(gene_count_ods) %>%
 
 ```{r}
 
-load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/gene_count_ods.rda")
+load(here::here("results", "/OUTRIDER/50_controls/gene_count_ods.rda"))
 
 # get samp ids of ATG7 patients
 which_ATG7 <- which(colData(gene_count_ods)[["gene_name"]] == "ATG7")
@@ -126,7 +126,7 @@ ATG7_expr_to_plot %>%
 
 ```
 
-- Family 1 and 2 look to have significantly lower expression of the ATG7 gene. 
+- S2557/M1856.17 look to have significantly lower expression of the ATG7 gene. 
 
 # OUTRIDER 
 
@@ -137,9 +137,9 @@ ATG7_expr_to_plot %>%
 
 ```{r}
 
-load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/ATG7_res_all.rda")
-load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/gene_count_corrected_example.rda")
-load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/gene_count_ods.rda")
+load(here::here("results/OUTRIDER/50_controls/ATG7_res_all.rda"))
+load(here::here("results/OUTRIDER/50_controls/gene_count_corrected_example.rda"))
+load(here::here("results/OUTRIDER/50_controls/gene_count_ods.rda"))
 
 ```
 
@@ -148,15 +148,15 @@ load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/gen
 - There are `r length(gene_count_ods)` genes remaining after filtering by expression. 
 
 ```{r }
-knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/FPKM.png")
-knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/expressed_genes.png")
+knitr::include_graphics(here::here("results/OUTRIDER/50_controls/FPKM.png"))
+knitr::include_graphics(here::here("results/OUTRIDER/50_controls/expressed_genes.png"))
 ```
 
 ### Pre-correction gene count heatmaps
 
 ```{r }
-knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/count_cor_pre_correction.png")
-knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/count_gene_sample_pre_correction.png")
+knitr::include_graphics(here::here("results/OUTRIDER/50_controls/count_cor_pre_correction.png"))
+knitr::include_graphics(here::here("results/OUTRIDER/50_controls/count_gene_sample_pre_correction.png"))
 ```
 
 ### Post-correction gene count heatmaps
@@ -164,8 +164,8 @@ knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRI
 Here, I have included one example. In reality, there's plots like these for each ATG7 sample as I have re-run each ATG7 with the other ATG7 samples removed. 
 
 ```{r}
-knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/count_cor_post_correction_M0920.18.png")
-knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/count_gene_sample_post_correction_M0920.18.png")
+knitr::include_graphics(here::here("results/OUTRIDER/50_controls/count_cor_post_correction_M0920.18.png"))
+knitr::include_graphics(here::here("results/OUTRIDER/50_controls/count_gene_sample_post_correction_M0920.18.png"))
 ```
 
 - It still looks like the count correlations are tagging the batch of the sequencing. 
@@ -368,156 +368,6 @@ ATG7_res_ATG7_only %>%
 
 ```
 
-## 20 controls (identical batch){.tabset}
-
-```{r}
-
-load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/ATG7_res_all.rda")
-load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/gene_count_corrected_example.rda")
-load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/gene_count_ods.rda")
-
-```
-
-### Filter by expression 
-
-- There are `r length(gene_count_ods)` genes remaining after filtering by expression. 
-
-```{r }
-knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/FPKM.png")
-knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/expressed_genes.png")
-```
-
-### Pre-correction gene count heatmaps
-
-```{r }
-knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/count_cor_pre_correction.png")
-knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/count_gene_sample_pre_correction.png")
-```
-
-### Encoding dimension optimisation
-
-```{r}
-
-plotEncDimSearch(gene_count_ods)
-
-```
-
-### Post-correction gene count heatmaps
-
-Here, I have included one example. In reality, there's plots like these for each ATG7 sample as I have re-run each ATG7 with the other ATG7 samples removed. 
-
-```{r}
-knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/count_cor_post_correction_M0920.18.png")
-knitr::include_graphics("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/count_gene_sample_post_correction_M0920.18.png")
-```
-
-### OUTRIDER results
-
-- I have used the FDR method for multiple test correction across every gene tested across all samples. 
-
-```{r}
-
-which_ATG7 <- which(colData(gene_count_ods)[["gene_name"]] == "ATG7")
-ATG7_samp_ids <- colData(gene_count_ods)[["samp_id_tidy"]][which_ATG7] %>% 
-  as.character()
-
-stopifnot(all(ATG7_samp_ids %in% ATG7_res_all$sampleID))
-
-ATG7_res_ATG7_only <- ATG7_res_all %>% 
-  filter(sampleID %in% ATG7_samp_ids) %>%
-  mutate(padjust = p.adjust(pValue, method = "fdr")) %>% 
-  dplyr::select(Description, everything())
-  
-
-```
-
-- There are 251 genes with outlier expression. 
-
-```{r}
-
-ATG7_res_ATG7_only_signif <- ATG7_res_ATG7_only %>% 
-  filter(padjust <= 0.05) %>% 
-  dplyr::select(Description, everything())
-
-ATG7_res_ATG7_only_signif
-
-```
-
-- All significant outliers are attributed to one sample. 
-
-```{r}
-
-ATG7_res_ATG7_only_signif$sampleID %>% table()
-
-```
-
-- Now ATG7 is not an outlier anymore (does not survive FDR correction). I think that this suggests using 20 samples as controls has not worked as well as ATG7 we can see in the expression plots looks to be severely underexpressed in M1856.7.
-
-```{r}
-
-ATG7_res_ATG7_only %>% 
-  filter(Description == "ATG7")
-
-```
-
-- As a double check, how many of the ATG7 outliers are common to any of the remaining patient samples. 
-
-```{r}
-
-signif_genes_remaining_samp <- ATG7_res_all %>% 
-  filter(!(sampleID %in% ATG7_samp_ids)) %>% 
-  mutate(padjust =  p.adjust(pValue, method = "fdr")) %>% 
-  filter(padjust <= 0.05) %>% 
-  .[["Description"]]
-
-mean(unique(ATG7_res_ATG7_only_signif$Description) %in% unique(signif_genes_remaining_samp))
-
-```
-
-### Gene-set enrichment
-
-```{r}
-
-hits_gprofiler <- 
-  gprofiler2::gost(query = unique(ATG7_res_ATG7_only_signif %>% 
-                                    arrange(padjust) %>% 
-                                    .[["geneID"]]), 
-                   organism = "hsapiens", 
-                   ordered_query = F, 
-                   significant = T, 
-                   user_threshold = 0.05, 
-                   correction_method = c("g_SCS"),
-                   domain_scope = c("custom"),
-                   custom_bg = unique(ATG7_res_all$geneID),
-                   sources = c("GO", "KEGG", "REAC"), 
-                   evcodes = F)
-
-hits_gprofiler$result
-
-gprofiler2::gostplot(hits_gprofiler)
-
-```
-
-### Autophagy genes
-
-- How many known autophagy genes that are part of the KEGG pathway are found amongst the ATG7 outliers?
-- RAB39B comes up as upregulared in one patient (M0921.18). Though this is different from the RAB9 suggested by Jack. 
-
-```{r}
-
-ATG7_res_ATG7_only_signif[ATG7_res_ATG7_only_signif$Description %in% unique(autophagy_gene_info$gene_name),]
-
-```
-
-- NFE2L2 does not look to have abnormal expression.  
-
-```{r}
-
-ATG7_res_ATG7_only %>% 
-  filter(Description == "NFE2L2")
-
-```
-
 # DESeq2
 
 - Based on the few number of significant hits from OUTRIDER (that limits our ability to run gene-set enrichment analysis), I believe that OUTRIDER may be over conservative when looking for differentially expressed pathways. As some perturbed genes may be differentially expressed, however not to the extent of being an outlier.
@@ -526,7 +376,7 @@ ATG7_res_ATG7_only %>%
 
 ```{r}
 
-load(file = "/home/dzhang/projects/ATG7_rob_t_analysis/results/DESeq2/ATG7_deseq2_res.rda")
+load(here::here("results/DESeq2/ATG7_deseq2_res.rda"))
 
 ```
 
@@ -537,10 +387,6 @@ load(file = "/home/dzhang/projects/ATG7_rob_t_analysis/results/DESeq2/ATG7_deseq
 
 ```{r}
 
-load(file = "/home/dzhang/projects/ATG7_rob_t_analysis/results/DESeq2/ATG7_deseq2_res.rda")
-
-library(tidyverse)
-
 ATG7_deseq2_res %>% 
   dplyr::arrange(desc(log2FoldChange))
 
@@ -548,19 +394,25 @@ ATG7_deseq2_res %>%
   ggplot(aes(log2FoldChange, -log(padj))) + 
   geom_point() + 
   scale_x_continuous(limits = c(-10, 10)) + 
-  scale_y_continuous(limits = c(0, 12.5))
+  scale_y_continuous(limits = c(0, 12.5)) 
 
-ATG7_deseq2_res %>% 
-  dplyr::filter(abs(log2FoldChange) >= 1)
+```
 
-ATG7_deseq2_res %>% 
-  filter(Description == "ATG7")
+- We can see from the Volcano plot that many of the genes have a small log-fold change. In which case, let us filter the significant results for those with a absolute log-fold change in a expression above 1.5. 
+
+```{r}
+
+# filter deseq2 results by log2fold change > 1.5
+ATG7_deseq2_res <- ATG7_deseq2_res %>% 
+  dplyr::filter(abs(log2FoldChange) >= 1.5)
 
 ```
 
 ## Gene-set enrichment
 
-### ATG7 patients
+### ATG7 patients {.tabset}
+
+#### all signif (abs log-fold change >1)
 
 - Here, I have tried using both the ranked (based on p-value) method and also the unranked. Below are the results shown for the *ranked* method as these gave a more mitochondrial result. 
 - We have 448 significantly dysregulated pathways. Mitochondrial pathways are the top 2 hits with other mitochondrial related pathways amongst the significant hits. 
@@ -568,16 +420,14 @@ ATG7_deseq2_res %>%
 
 ```{r}
 
-load("/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/ATG7_res_all.rda")
-
-
+load(here::here("results/OUTRIDER/50_controls/ATG7_res_all.rda"))
 
 hits_gprofiler <- 
   gprofiler2::gost(query = ATG7_deseq2_res %>% 
                      arrange(pvalue) %>% 
                      .[["Description"]], 
                    organism = "hsapiens", 
-                   ordered_query = T, 
+                   ordered_query = TRUE, 
                    significant = T, 
                    user_threshold = 0.05, 
                    correction_method = c("g_SCS"),
@@ -587,11 +437,75 @@ hits_gprofiler <-
                    evcodes = F)
 
 hits_gprofiler$result %>% 
-  as_tibble() 
+  as_tibble() %>% 
+  data.table::data.table()
+
+# hits_gprofiler$result %>% 
+#   dplyr::filter(str_detect(term_name, "autophagy"))
 
 gprofiler2::gostplot(hits_gprofiler)
 
 ```
+
+#### Positive fold-change
+
+```{r}
+
+hits_gprofiler <- 
+  gprofiler2::gost(query = ATG7_deseq2_res %>% 
+                     arrange(pvalue) %>% 
+                      dplyr::filter(log2FoldChange > 0) %>% 
+                     .[["Description"]], 
+                   organism = "hsapiens", 
+                   ordered_query = TRUE, 
+                   significant = T, 
+                   user_threshold = 0.05, 
+                   correction_method = c("g_SCS"),
+                   domain_scope = c("custom"),
+                   custom_bg = unique(ATG7_res_all$geneID),
+                   sources = c("GO", "KEGG", "REAC"), 
+                   evcodes = F)
+
+hits_gprofiler$result %>% 
+  as_tibble() %>% 
+  data.table::data.table()
+
+# hits_gprofiler$result %>% 
+#   dplyr::filter(str_detect(term_name, "autophagy"))
+
+gprofiler2::gostplot(hits_gprofiler)
+
+```
+
+#### Negative fold-change
+
+```{r}
+hits_gprofiler <- 
+  gprofiler2::gost(query = ATG7_deseq2_res %>% 
+                     arrange(pvalue) %>% 
+                      dplyr::filter(log2FoldChange < 0) %>% 
+                     .[["Description"]], 
+                   organism = "hsapiens", 
+                   ordered_query = TRUE, 
+                   significant = T, 
+                   user_threshold = 0.05, 
+                   correction_method = c("g_SCS"),
+                   domain_scope = c("custom"),
+                   custom_bg = unique(ATG7_res_all$geneID),
+                   sources = c("GO", "KEGG", "REAC"), 
+                   evcodes = F)
+
+hits_gprofiler$result %>% 
+  as_tibble() %>% 
+  data.table::data.table()
+
+# hits_gprofiler$result %>% 
+#   dplyr::filter(str_detect(term_name, "autophagy"))
+
+gprofiler2::gostplot(hits_gprofiler)
+
+```
+
 
 ### Control samples
 
