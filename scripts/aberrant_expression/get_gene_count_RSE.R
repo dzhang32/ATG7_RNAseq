@@ -1,4 +1,5 @@
 library(tidyverse)
+library(dasper)
 library(foreach)
 library(doParallel)
 
@@ -12,7 +13,9 @@ ref <- dasper:::.ref_load(ref = "/data/references/ensembl/gtf_gff3/v97/Homo_sapi
 
 add_pt_sex <- function(gene_counts_rse, ref){
   
-  sex_genes <- GenomicFeatures::genes(ref, filter = list(gene_id = c("ENSG00000067048", "ENSG00000229807")))
+  # DDX3Y & XIST expression used as sex determinants
+  sex_genes <- GenomicFeatures::genes(ref, 
+                                      filter = list(gene_id = c("ENSG00000067048", "ENSG00000229807")))
   
   gene_counts_rse$sex <- as.character(NA)
   
@@ -37,6 +40,7 @@ add_pt_sex <- function(gene_counts_rse, ref){
 
 ##### Generate gene count matrices #####
 
+# use one core per patient
 numCores <- nrow(mito_samp_metadata_tidy)
 registerDoParallel(numCores)
 
@@ -47,6 +51,7 @@ foreach(i=1:nrow(mito_samp_metadata_tidy)) %dopar% {
   
   print(stringr::str_c(Sys.time(), " - ", i, " - ", samp_id))
   
+  # run RNA-seq QC to obtain gene counts
   system(
     stringr::str_c("/tools/RNA-SeQC/rnaseqc.v2.3.4.linux", 
                    " /data/references/ensembl/gtf_gff3/v97/Homo_sapiens.GRCh38.97.genes.gtf", 
@@ -63,11 +68,10 @@ foreach(i=1:nrow(mito_samp_metadata_tidy)) %dopar% {
 gene_count_test <- read_delim("results/get_gene_count_RSE/control_1.gene_reads.gct", 
                               delim = "\t", skip = 2)
 
+# eye-balling expression values
 summary(gene_count_test$control_1)
 
 # 22746 genes with a TPM above 0 - looks about right
-
-stopifnot(sum(gene_count_test$control_1 > 0) > 1)
 sum(gene_count_test$control_1 > 0)
 
 rm(gene_count_test)
@@ -122,8 +126,8 @@ stopifnot(identical(mito_samp_metadata_tidy[["samp_id_tidy"]] %>% as.character()
 
 # convert gene counts into an RSE
 gene_counts_rse <- SummarizedExperiment::SummarizedExperiment(rowRanges = gene_info, 
-                                                           colData = mito_samp_metadata_tidy,
-                                                           assays = list(count = gene_counts_mat))
+                                                              colData = mito_samp_metadata_tidy,
+                                                              assays = list(count = gene_counts_mat))
 
 ##### add patient sexes #####
 
@@ -135,4 +139,4 @@ gene_counts_rse$batch <- ifelse(str_detect(gene_counts_rse$bw_path, "mito_add_po
 
 # Save data ---------------------------------------------------------------
 
-save(gene_counts_rse, file = "results/get_gene_count_RSE/gene_counts_rse.rda")
+save(gene_counts_rse, file = here::here("results/get_gene_count_RSE/gene_counts_rse.rda"))
