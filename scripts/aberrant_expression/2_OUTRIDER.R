@@ -3,13 +3,17 @@ library(OUTRIDER)
 
 # Load data ---------------------------------------------------------------
 
-load("/home/dzhang/projects/ATG7_rob_t_analysis/results/get_gene_count_RSE/gene_counts_rse.rda")
+load(here::here("results/aberrant_expression/get_gene_count_RSE/gene_counts_rse.rda"))
 
 ref <- dasper:::.ref_load(ref = "/data/references/ensembl/gtf_gff3/v97/Homo_sapiens.GRCh38.97.gtf")
 
+gene_info <- read_delim(here::here("results/aberrant_expression/get_gene_count_RSE/control_1.gene_reads.gct"),
+                        delim = "\t", skip = 2) %>% 
+  dplyr::select(-control_1)
+
 # Functions ---------------------------------------------------------------
 
-OUTRIDER_wrapper <- function(rse, out_dir){
+OUTRIDER_wrapper <- function(rse, gene_info, out_dir){
   
   ##### Generate an ODS #####
   
@@ -130,16 +134,7 @@ OUTRIDER_wrapper <- function(rse, out_dir){
 
     dev.off()
 
-    # volcano <- plotVolcano(gene_count_to_test, samp_interest_id, basePlot=TRUE)
-    # 
-    # ggsave(filename = stringr::str_c("volcano_", samp_interest_id, ".png"),
-    #        path = out_dir,
-    #        plot = volcano,
-    #        dpi = 300,
-    #        width = 8,
-    #        height = 6)
-
-    res <- results(gene_count_to_test, all = TRUE)
+    res <- OUTRIDER::results(gene_count_to_test, all = TRUE)
 
     res <- res %>% mutate(samp_of_interest = sampleID == samp_interest_id)
 
@@ -148,13 +143,8 @@ OUTRIDER_wrapper <- function(rse, out_dir){
 
   }
 
-  # add gene symbol to results
-  gene_count_test <- read_delim("/home/dzhang/projects/ATG7_rob_t_analysis/results/get_gene_count_RSE/control_1.gene_reads.gct",
-                                delim = "\t", skip = 2)
-
   ATG7_res_all <- ATG7_res_all %>%
-    left_join(gene_count_test, by = c("geneID" = "Name")) %>%
-    dplyr::select(-control_1)
+    left_join(gene_info, by = c("geneID" = "Name"))
 
   ##### Save data #####
 
@@ -169,10 +159,5 @@ OUTRIDER_wrapper <- function(rse, out_dir){
 # Main --------------------------------------------------------------------
 
 OUTRIDER_wrapper(rse = gene_counts_rse, 
-                 out_dir = "/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/50_controls/")
-
-# filter for only the second batch of ~20 samples
-gene_counts_rse <- gene_counts_rse[, gene_counts_rse$batch == 2]
-
-OUTRIDER_wrapper(rse = gene_counts_rse, 
-                 out_dir = "/home/dzhang/projects/ATG7_rob_t_analysis/results/OUTRIDER/20_controls/")
+                 gene_info, 
+                 out_dir = here::here("results/aberrant_expression/OUTRIDER/50_controls/"))
