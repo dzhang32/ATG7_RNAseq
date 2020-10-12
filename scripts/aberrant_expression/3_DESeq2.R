@@ -5,11 +5,11 @@ library(DESeq2)
 
 # Load data -------------------------------------------------------------------------------------------
 
-load("/home/dzhang/projects/ATG7_rob_t_analysis/results/get_gene_count_RSE/gene_counts_rse.rda")
+load(here::here("results/aberrant_expression/get_gene_count_RSE/gene_counts_rse.rda"))
 
 ref <- dasper:::.ref_load(ref = "/data/references/ensembl/gtf_gff3/v97/Homo_sapiens.GRCh38.97.gtf")
 
-gene_info <- read_delim("results/get_gene_count_RSE/control_1.gene_reads.gct",
+gene_info <- read_delim(here::here("results/aberrant_expression/get_gene_count_RSE/control_1.gene_reads.gct"),
                         delim = "\t", skip = 2) %>% 
   dplyr::select(-control_1)
 
@@ -88,6 +88,6 @@ COL6A_deseq2_res <- res
 
 # Save data ---------------------------------------------------------------
 
-save(ATG7_deseq2_res, file = "results/DESeq2/ATG7_deseq2_res.rda")
+save(ATG7_deseq2_res, file = here::here("results/aberrant_expression/DESeq2/ATG7_deseq2_res.rda"))
 
-save(COL6A_deseq2_res, file = "results/DESeq2/COL6A_deseq2_res.rda")
+save(COL6A_deseq2_res, file = here::here("results/aberrant_expression/DESeq2/COL6A_deseq2_res.rda"))
