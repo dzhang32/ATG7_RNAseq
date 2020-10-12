@@ -56,7 +56,7 @@ foreach(i=1:nrow(mito_samp_metadata_tidy)) %dopar% {
     stringr::str_c("/tools/RNA-SeQC/rnaseqc.v2.3.4.linux", 
                    " /data/references/ensembl/gtf_gff3/v97/Homo_sapiens.GRCh38.97.genes.gtf", 
                    " ", samp_bam, 
-                   " /home/dzhang/projects/ATG7_rob_t_analysis/results/get_gene_count_RSE/",
+                   " ", here::here("/results/aberrant_expression/get_gene_count_RSE/"),
                    " -s ", samp_id, 
                    " -v -v")
     )
@@ -65,7 +65,7 @@ foreach(i=1:nrow(mito_samp_metadata_tidy)) %dopar% {
 
 ##### Check matrix is as expected #####
 
-gene_count_test <- read_delim("results/get_gene_count_RSE/control_1.gene_reads.gct", 
+gene_count_test <- read_delim(here::here("results/aberrant_expression/get_gene_count_RSE/control_1.gene_reads.gct"), 
                               delim = "\t", skip = 2)
 
 # eye-balling expression values
@@ -78,7 +78,8 @@ rm(gene_count_test)
 
 ##### Merge all patient gene counts #####
 
-gene_count_paths <- list.files("results/get_gene_count_RSE/", pattern = "gene_reads", full.names = TRUE)
+gene_count_paths <- list.files(here::here("results/aberrant_expression/get_gene_count_RSE/"), 
+                               pattern = "gene_reads", full.names = TRUE)
 
 for(i in seq_along(gene_count_paths)){
   
@@ -139,4 +140,4 @@ gene_counts_rse$batch <- ifelse(str_detect(gene_counts_rse$bw_path, "mito_add_po
 
 # Save data ---------------------------------------------------------------
 
-save(gene_counts_rse, file = here::here("results/get_gene_count_RSE/gene_counts_rse.rda"))
+save(gene_counts_rse, file = here::here("results/aberrant_expression/get_gene_count_RSE/gene_counts_rse.rda"))
