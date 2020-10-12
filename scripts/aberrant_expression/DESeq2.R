@@ -9,8 +9,9 @@ load("/home/dzhang/projects/ATG7_rob_t_analysis/results/get_gene_count_RSE/gene_
 
 ref <- dasper:::.ref_load(ref = "/data/references/ensembl/gtf_gff3/v97/Homo_sapiens.GRCh38.97.gtf")
 
-gene_count_test <- read_delim("results/get_gene_count_RSE/control_1.gene_reads.gct",
-                              delim = "\t", skip = 2)
+gene_info <- read_delim("results/get_gene_count_RSE/control_1.gene_reads.gct",
+                        delim = "\t", skip = 2) %>% 
+  dplyr::select(-control_1)
 
 # Main ------------------------------------------------------------------------------------------------
 
@@ -25,6 +26,10 @@ gene_count_ods <- filterExpression(gene_count_ods,
 
 gene_count_ods <- gene_count_ods[mcols(gene_count_ods)$passedFilter,]
 
+##### Remove the duplicated S2557 sample #####
+
+gene_count_ods <- gene_count_ods[,colData(gene_count_ods)$samp_id_tidy != "S2557"]
+
 ##### Run DESeq2 - ATG7 vs rest patients #####
 
 register(MulticoreParam(20))
@@ -32,8 +37,7 @@ register(MulticoreParam(20))
 which_ATG7 <- which(colData(gene_count_ods)[["gene_name"]] == "ATG7")
 gene_count_ods$condition <- "control"
 gene_count_ods$condition[which_ATG7] <- "case"
-
-gene_count_ods$batch <- as.factor(gene_count_ods$batch)
+gene_count_ods$batch <- gene_count_ods$batch
 
 dds <- DESeqDataSetFromMatrix(countData = assays(gene_count_ods)[["counts"]],
                               colData = colData(gene_count_ods),
@@ -47,12 +51,12 @@ res <- res[order(res$padj),]
 res <- res %>% 
   as.data.frame() %>% 
   rownames_to_column("gene_id") %>%
-  left_join(gene_count_test, by = c("gene_id" = "Name")) %>% 
-  as_tibble()
+  left_join(gene_info, by = c("gene_id" = "Name")) %>% 
+  as_tibble() %>% 
+  dplyr::select(gene_symbol = Description, everything())
 
+# rename for save()
 ATG7_deseq2_res <- res
-
-save(ATG7_deseq2_res, file = "results/DESeq2/ATG7_deseq2_res.rda")
 
 ##### Run DESeq2 - control vs rest patients #####
 
@@ -75,11 +79,15 @@ res <- res[order(res$padj),]
 
 res <- res %>% 
   as.data.frame() %>% 
-  rownames_to_column("gene_id") %>%
-  left_join(gene_count_test, by = c("gene_id" = "Name")) %>% 
-  as_tibble()
+  rownames_to_column("gene_id") %>% 
+  left_join(gene_info, by = c("gene_id" = "Name")) %>% 
+  as_tibble() %>% 
+  dplyr::select(gene_symbol = Description, everything())
 
 COL6A_deseq2_res <- res
 
-save(COL6A_deseq2_res, file = "results/DESeq2/COL6A_deseq2_res.rda")
+# Save data ---------------------------------------------------------------
 
+save(ATG7_deseq2_res, file = "results/DESeq2/ATG7_deseq2_res.rda")
+
+save(COL6A_deseq2_res, file = "results/DESeq2/COL6A_deseq2_res.rda")
