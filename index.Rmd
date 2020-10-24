@@ -1,6 +1,8 @@
 ---
 title: "Aberrant expression and splicing detection in ATG7 patients"
-author: "David Zhang"
+author:
+  - name: "David Zhang"
+    affiliation: UCL
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output: 
   html_document:
@@ -57,7 +59,9 @@ old_theme <- theme_set(ggpubr::theme_pubr())
 
 ```
 
-> Aim: Detect genes (and pathways) that are differentially expressed/spliced in response to disease. 
+> Aim: Detect genes and pathways that are differentially expressed or spliced in response to disease in ATG7 patients. 
+
+<br><br>
 
 # Background 
 
@@ -118,11 +122,15 @@ DESeq2 aims at finding differentially expressed genes by modelling reads using a
 
 dasper uses an outlier detection model to find aberrant splicing events. As input it uses junction (reads with a gapped alignment that signify the splicing out of an intron) counts and coverage in associated regions as features. Then for each patient using a 1 vs all method, compares these features to a set of controls. 
 
+<br><br>
+
 # Methods
+
+All source code can be found at: https://github.com/dzhang32/ATG7_RNAseq
 
 **Patient and control samples**
 
-RNA-sequencing was performed on a total of 58 individuals. 5 of these were ATG7 patients detailed in table . In particular, samples were obtained from patients M1856.17, M0920.18, M0921.18, M1111.19 and M1716.19 from families 1, 2, 2, 3 and 4 respectively. The remaining 53 samples were used as the control samples consisting of a cohort of 46 patients diagnosed with mitochondrial disease, 7 patients with congenital muscular dystrophyand 2 unaffected individuals. 
+RNA-sequencing was performed on a total of 58 individuals. 5 of these were ATG7 patients detailed in **Table: ATG7 patient metadata - ATG7_patient_metadata.csv**. In particular, samples were obtained from patients M1856.17, M0920.18, M0921.18, M1111.19 and M1716.19 from families 1, 2, 2, 3 and 4 respectively. The remaining 53 samples were used as the control samples consisting of a cohort of 46 patients diagnosed with mitochondrial disease, 7 patients with congenital muscular dystrophy and 2 unaffected individuals. 
 
 **Culturing fibroblasts**
 
@@ -130,21 +138,22 @@ Fibroblast cell lines were obtained from 58 individuals were obtained through co
 
 **RNA-sequencing**
 
-RNA from fibroblast pellets was either extracted and sequenced at Eurofins Genomics or extracted through Bioxpedia, then sequenced at UCL Genomics.  RNA integrity numbers (RIN) were measured using Agilent Technologies 2100 Bioanalyzer or Agilent 4200 Tapestation by Eurofins/Bioxpedia respectively. All RIN values exceeded 8.0. RNA library preparation was performed using the INVIEW Transcriptome Discover protocol from Eurofins. Specifically,
-the cDNA library was prepared using a random primed, strand specific, poly-A selection protocol. Paired-end sequencing was performed on illumina NovaSeq 6000 Sequencing System machines to an coverage of ~100 million pair-end reads per sample. Reads of 150-bp length were used to increase the proportion of reads with a gapped alignment, which represent splicing events. 
+RNA from fibroblast pellets was either extracted and sequenced at Eurofins Genomics or extracted through Bioxpedia, then sequenced at UCL Genomics. RNA integrity numbers (RIN) were measured using Agilent Technologies 2100 Bioanalyzer or Agilent 4200 Tapestation by Eurofins/Bioxpedia respectively. All RIN values exceeded 8.0. RNA library preparation was performed using the INVIEW Transcriptome Discover protocol from Eurofins. Specifically, the cDNA library was prepared using a random primed, strand specific, poly-A selection protocol. Paired-end sequencing was performed on illumina NovaSeq 6000 Sequencing System machines to an coverage of ~100 million pair-end reads per sample. Reads of 150-bp length were used to increase the proportion of reads with a gapped alignment, which represent splicing events. 
 
 **RNA-sequencing alignment and quality control of patient samples**
 
-Pre-alignment quality control including adapter trimming, read filtering and base correction was performed using fastp, an all-in-one FASTQ preprocessor (v0.20.0) (CITATION - https://academic.oup.com/bioinformatics/article/34/17/i884/5093234). Reads were aligned using STAR 2-pass (v2.7.0) to the hg38 build of the reference human genome (hg38) using gene annotation from Ensembl v97 (CITATION - https://pubmed.ncbi.nlm.nih.gov/23104886/). 1st pass alignment was used to discover novel junctions, which were used as input to the 2nd pass to improve the sensitivity of junction detection. Via the option `--outFilterMultimapNmax 1` reads were required to be uniquely mapped to only a single position in the genome. The minimum required
-overhang length of an annotated and unannotated junction was required to be 8 and 3 base pairs respectively. The output BAM files underwent post-alignment QC using RSeQC (CITATION - https://academic.oup.com/bioinformatics/article/28/11/1530/267467) with all samples passing quality control after manual assessment.  
+Pre-alignment quality control including adapter trimming, read filtering and base correction was performed using fastp, an all-in-one FASTQ preprocessor (v0.20.0) (1 - fastp). Reads were aligned using STAR 2-pass (v2.7.0) to the hg38 build of the reference human genome (hg38) using gene annotation from Ensembl v97 (2 - STAR). 1st pass alignment was used to discover novel junctions, which were used as input to the 2nd pass to improve the sensitivity of junction detection. Via the option `--outFilterMultimapNmax 1` reads were required to be uniquely mapped to only a single position in the genome. The minimum required
+overhang length of an annotated and unannotated junction was required to be 8 and 3 base pairs respectively. The output BAM files underwent post-alignment QC using RSeQC (v2.6.4) with all samples passing quality control after manual assessment (3 - RSeQC).  
 
 **Detecting abberantly expressed genes and pathways**
 
-Gene count matrices were generated using RNA-SeQC (v2.3.4) with Ensembl v97 reference annotation matching the protocol used in https://github.com/broadinstitute/gtex-pipeline (CITATION - https://pubmed.ncbi.nlm.nih.gov/22539670/). OUTRIDER was used to find outlier expression of genes in each ATG7 patient, hence an all vs 1 experiment design was used, whereby each ATG7 patient were compared to the remaining 53 controls (CITATION - https://www.sciencedirect.com/science/article/pii/S0002929718304014?via%3Dihub). OUTRIDER was run with default setting and the autoencoder was fit using the optimal encoding dimension found to the be XX. P-values were corrected for multiple testing using the Benjamin Hochberg method and 0.05 was used as the signifance threshold. DESeq2 was applied to detect common genes or pathways that were dysregulated across all ATG7 patients (CITATION - https://genomebiology.biomedcentral.com/articles/10.1186/s13059-014-0550-8). Thus, all 5 ATG7 were grouped together as the case cohort and compared to the 53 control samples. The Benjamin Hochberg method was used for multiple test correction and genes with a p-value less than 0.05 and an absolute log-fold change greater than 1.5 were considered differentially expressed. gprofiler2 was then run to with differentially expressed genes as input, ranked by p-value to find dysregulated pathways (CITATION - https://academic.oup.com/nar/article/47/W1/W191/5486750). 
+Gene count matrices were generated using RNA-SeQC (v2.3.4) with Ensembl v97 reference annotation matching the protocol used in https://github.com/broadinstitute/gtex-pipeline (4 - RNA-SeQC). OUTRIDER (v1.6.1) was used to find outlier expression of genes in each ATG7 patient, hence an all vs 1 experiment design was used, whereby each ATG7 patient were compared to the remaining 53 controls (5 - OUTRIDER). OUTRIDER was run with default setting and the autoencoder was fit using the optimal encoding dimension found to the be 12. P-values were corrected for multiple testing using the Benjamin Hochberg method and 0.05 was used as the signifance threshold. DESeq2 (v1.26.0) was applied to detect common genes or pathways that were dysregulated across all ATG7 patients (6 - DESeq2). Thus, all 5 ATG7 were grouped together as the case cohort and compared to the 53 control samples. The Benjamin Hochberg method was used for multiple test correction and genes with a p-value less than 0.05 and an absolute log-fold change greater than 1.5 were considered differentially expressed. gprofiler2 (v0.1.9) was then run to with significantly differentially expressed genes as input, ranked by p-value to find dysregulated pathways (7 - gprofiler2). 
 
 **Detecting abberantly expressed splicing events**
 
-dasper (https://github.com/dzhang32/dasper) was used to detect aberrant splicing events in each of the 5 ATG7 patients. Foremost, BAM files were converted into the BigWig format using `megadepth` (CITATION - https://github.com/ChristopherWilks/megadepth). Junctions outputted by STAR and BigWig files were inputted into the dasper pipeline. Foremost, dasper loads, filters junction data. Here, we required junctions to have at least 5 counts in at least 1 sample, a length between 20-1,000,000 base pairs and to not overlap any ENCODE blacklist regions (CITATION - https://www.nature.com/articles/s41598-019-45839-z). Junctions were then annotated using Ensembl v97 reference annotation and classified in the categories "annotated", "novel_acceptor", "novel_donor", "novel_combo", "novel_exon_skip", "ambig_gene" and "unannotated". Junctions were then clustered by their shared acceptor or donor sites and their counts were normalised. Coverage data associated with each junction was loaded and normalised for each sample. Junction and coverage normalised counts were scored using the z-score approach. Resulting z-scores for each patient were placed into a isolation forest model to rank splicing by how abberrant they looked in relation to controls. The rank for the most abnormal splicing event in ATG7 was then extracted. Sashimi plots describing the splicing across the ATG7 patients were plotted for each of the 5 patients. 
+dasper (v0.99.0) was used to detect aberrant splicing events in each of the 5 ATG7 patients. Foremost, BAM files were converted into the BigWig format using `megadepth` (8 - dasper, 9/10 - megadepth). Junctions outputted by STAR and BigWig files were inputted into the dasper pipeline. Foremost, dasper loads, filters junction data. Here, we required junctions to have at least 5 counts in at least 1 sample, a length between 20-1,000,000 base pairs and to not overlap any ENCODE blacklist regions (11 - ENCODE blacklist regions). Junctions were then annotated using Ensembl v97 reference annotation and classified in the categories "annotated", "novel_acceptor", "novel_donor", "novel_combo", "novel_exon_skip", "ambig_gene" and "unannotated". Junctions were then clustered by their shared acceptor or donor sites and their counts were normalised. Coverage data associated with each junction was loaded and normalised for each sample. Junction and coverage normalised counts were scored using the z-score approach. Resulting z-scores for each patient were placed into a isolation forest model to rank splicing events by how abberrant they looked in relation to controls. Sashimi plots describing the splicing across the ATG7 patients were plotted for each of the 5 patients using dasper. 
+
+<br><br>
 
 # Results
 
@@ -155,6 +164,8 @@ dasper (https://github.com/dzhang32/dasper) was used to detect aberrant splicing
 #### Text
 
 OUTRIDER detected ATG7 as an expression outlier in family 1 (pvalue: 0.002421725, zscore: -4.59) (**Table: ATG7 OUTRIDER - ATG7_OUTRIDER_results.csv**). Consistent with this, when plotting the expression of ATG7 as fragments per kilobase of exon model per million reads mapped (FPKM) against the remaining patient samples, family 1 was observed to have lower ATG7 expression compared to the remaining ATG7 patients and controls. All other families looked to have similar ATG7 expression to the remaining patient samples (**Figure: ATG7 expression - ATG7_expr_plot.csv**). 
+
+<br><br>
 
 #### Tables
 
@@ -181,9 +192,11 @@ write_delim(ATG7_res_ATG7_only,
 
 ```
 
+<br><br>
+
 #### Figures
 
-**Figure: ATG7 expression - ATG7_expr_plot.pngs**
+**Figure: ATG7 expression - ATG7_expr_plot.png**
 
 ```{r "plot ATG7 expression"}
 
@@ -221,18 +234,31 @@ plot_fpkm <- function(gene_id, gene_name, gene_count_ods, ATG7_patient_metadata)
   
 }
          
-
-plot_fpkm(gene_id = "ENSG00000197548", gene_name = "ATG7", gene_count_ods, ATG7_patient_metadata)
+plot_fpkm(gene_id = "ENSG00000197548", 
+          gene_name = "ATG7", 
+          gene_count_ods, 
+          ATG7_patient_metadata)
 
 ```
 
+<br><br>
+
 ### OUTRIDER detects 9 genes that are expression outliers common to at least 2 of the ATG7 patients {.tabset}
 
-OUTRIDER detected 264 unique genes as expression outliers  across all samples (Table ATG7_OUTRIDER_res_signif.csv). In order to find genes that were commonly disrupted across ATG7 patients we filtered results by genes that were outliers in at least two ATG7 patient samples. The table below details the 9 genes left after this filtering. Each row represents a patient and each column represents a gene that was detected as a outlier in at least 2 of the ATG7 patients. Values in each cell represent the “z-score;pvalue” for each patient/gene respectively. Green indicates a positive z-score and red a negative z-score with respect to controls. Bold font is used for those that are significant outliers (p-value < 0.05 after FDR correction). 
+#### Text
 
-VPS41, HMG20A and TBC1D3L were specifically down-regulated in family 2. TBC1D3L is a GTPase activating protein for RAB5, which looks to have a role in macroautophagy (https://jcs.biologists.org/content/121/10/e1002). VPS41 has a role in vesicular transport and is suggested to be neuroprotective in AD/PD acting via an autophagy mechanism (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6276837/). 
+OUTRIDER detected 264 unique genes as expression outliers across all 5 samples. In order to find genes that were commonly disrupted across ATG7 patients we filtered results by genes that were outliers in at least two ATG7 patient samples. 9 genes remained after this filter (**Table: Common outliers - ATG7_OUTRIDER_common_outliers.csv**). 
 
-```{r, "OUTRIDER common outliers"}
+VPS41, HMG20A and TBC1D3L were specifically down-regulated in family 2 (**Figure: VPS41/HMG20A/TBC1D3L expression - GENE_NAME_expr_plot.png**). TBC1D3L is a GTPase activating protein for RAB5, which looks to have a role in macroautophagy (https://jcs.biologists.org/content/121/10/e1002). VPS41 has a role in vesicular transport and is suggested to be neuroprotective in AD/PD acting via an autophagy mechanism (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6276837/).
+
+<br><br>
+
+#### Tables
+
+**Table: Common outliers - ATG7_OUTRIDER_common_outliers.csv**
+Each row represents a patient and each column represents a gene that was detected as a outlier in at least 2 of the ATG7 patients. Values in each cell represent the “z-score;pvalue” for each patient/gene respectively. Green indicates a positive z-score and red a negative z-score with respect to controls. Bold font is used for those that are significant outliers (p-value < 0.05 after FDR correction). 
+
+```{r "OUTRIDER common outliers"}
 
 ATG7_res_ATG7_only_signif <- ATG7_res_ATG7_only %>% 
   filter(padjust <= 0.05) %>% 
@@ -266,9 +292,47 @@ write_delim(common_genes,
 
 ```
 
-### Mitosis and cell-cycle-related pathways are commonly disrupted across the ATG7 patients
+<br><br>
 
-DESeq2 detected 358 genes that were significantly differentially expressed with a log-fold change of >1.5 in the ATG7 patients (see full results in ATG7_deseq2_signif_logfold_ab_1.5.csv). The vast majority of these (210 genes) were down-regulated. When running gene-set enrichment analysis, we found that these 358 genes were generally enriched in mitotic and cell cycle related pathways (see full results in ATG7_deseq2_signif_logfold_ab_1.5_gprofiler.csv). However, four Golgi-related pathways were among those enriched  amongst down-regulated genes (COPI-dependent Golgi-to-ER retrograde traffic, Golgi Cisternae Pericentriolar Stack Reorganization, Intra-Golgi and retrograde Golgi-to-ER traffic, Golgi-to-ER retrograde transport). We did not find that the differentially expressed genes were enriched for autophagy related pathways. 
+#### Figures 
+
+**Figure: VPS41/HMG20A/TBC1D3L expression - GENE_NAME_expr_plot.png**
+
+```{r "VPS41/HMG20A/TBC1D3L expression"}
+
+plot_fpkm(gene_id = "ENSG00000140382", 
+          gene_name = "HMG20A", 
+          gene_count_ods, 
+          ATG7_patient_metadata)
+
+plot_fpkm(gene_id = "ENSG00000274512", 
+          gene_name = "TBC1D3L", 
+          gene_count_ods, 
+          ATG7_patient_metadata)
+
+plot_fpkm(gene_id = "ENSG00000006715", 
+          gene_name = "VPS41", 
+          gene_count_ods, 
+          ATG7_patient_metadata)
+
+```
+
+<br><br>
+
+### Mitosis and cell-cycle-related pathways are commonly disrupted across the ATG7 patients {.tabset}
+
+#### Text
+
+DESeq2 detected 358 genes that were significantly differentially expressed with a log-fold change of >1.5 in the ATG7 patients (see full results in **Table: DESeq2 results - ATG7_deseq2_results.csv**). The vast majority of these (210 genes) were down-regulated. When running gene-set enrichment analysis, we found that these 358 genes were generally enriched in mitotic and cell cycle related pathways (see full results in ATG7_deseq2_signif_logfold_ab_1.5_gprofiler.csv). However, 5 Golgi-related pathways were among those enriched  amongst down-regulated genes ("retrograde vesicle-mediated transport, Golgi to endoplasmic reticulum", "COPI-dependent Golgi-to-ER retrograde traffic", "Golgi-to-ER retrograde transport", "Golgi Cisternae Pericentriolar Stack Reorganization", "Intra-Golgi and retrograde Golgi-to-ER traffic") (**Table: Gene-set enrichment results - ATG7_deseq2_signif_logfold_ab_1.5_gprofiler.csv**). We did not find that the differentially expressed genes were enriched for autophagy related pathways. 
+
+Although we found that mitotic-related pathways were commonly disrupted across ATG7 patients, it was not clear whether this was variable across the different ATG7 patients or families. In order to investigate this, we selected the genes PTPRD/CDKN3/CDK1 which was amongst the most down-regulated genes, as representative of the commonly disrupted mitotic and cylin pathways. The expression of PTPRD was lowest in family 1 and family 3. Whilst family 2/4 had relatively unperturbed PTPRD expression.The expression of CDKN3/CDK1 may be down-regulated. They are the top 81 and 109 down-regulated genes and are both differentially expressed with pvalues of 3.088299e-05 and 6.016993e-05 respectively (**Figure: PTPRD/CDKN3/CDK1 expression - GENE_NAME_expr_plot.png**). 
+
+<br><br>
+
+#### Tables
+
+**Table: DESeq2 results - ATG7_deseq2_results.csv**
+The top 100 differentially expressed genes are displayed below. The full set of DESeq2 results can be found *ATG7_deseq2_results.csv*.
 
 ```{r "deseq2"}
 
@@ -283,7 +347,16 @@ ATG7_deseq2_res <- ATG7_deseq2_res %>%
          abs(log2FoldChange) >= 1.5) %>% 
   mutate(log2FoldChange = -log2FoldChange)
 
-ATG7_deseq2_res %>% arrange(log2FoldChange) 
+ATG7_deseq2_res %>% 
+  arrange(log2FoldChange) %>%
+  head(100)
+
+```
+
+**Table: Gene-set enrichment results - ATG7_deseq2_signif_logfold_ab_1.5_gprofiler.csv**
+The top 100 enriched pathways are displayed below. The full set of gene-set enrichment results can be found *ATG7_deseq2_signif_logfold_ab_1.5_gprofiler.csv*.
+
+```{r "deseq2 gprofiler"}
 
 hits_gprofiler <- 
   gprofiler2::gost(query = ATG7_deseq2_res %>% 
@@ -299,99 +372,37 @@ hits_gprofiler <-
                    sources = c("GO", "KEGG", "REAC"), 
                    evcodes = F)
 
-gprofiler2::gostplot(hits_gprofiler)
-
 hits_gprofiler$result %>% 
   dplyr::select(-parents) %>% 
   write_delim(here::here("results/tables_figures/ATG7_deseq2_signif_logfold_ab_1.5_gprofiler.csv"), delim = ",")
 
-```
-
-The **top 10** most significant enriched pathways are: 
-
-```{r "top gprofiler hits"}
-
-# top 5 significant gprofiler hits 
 hits_gprofiler$result %>% 
-  head(10) %>% 
-  as_tibble() %>% 
-  .[["term_name"]] 
-
+  dplyr::select(-parents) %>% 
+  head(100)
 ```
 
-The significantly enriched pathways with "Golgi" in their name:
+<br><br>
 
-```{r "golgi pathways"}
+#### Figures
 
-# golgi hits 
-hits_gprofiler$result %>% 
-  as_tibble() %>% 
-  filter(str_detect(term_name, "Golgi")) %>% 
-  .[["term_name"]]
+**Figure: Gene-set enrichment results**
+The below is an interactive figure plotted for visually looking through the gene-set enrichment results. Due to it's interactive nature it's not included as a saved plot. 
 
+```{r "gostplot"}
+gprofiler2::gostplot(hits_gprofiler)
 ```
 
-Although we found that mitotic-related pathways were commonly disrupted across ATG7 patients, it was not clear whether this was variable across the different ATG7 patients or families. In order to investigate this, we selected the gene PTPRD which was amongst the most down-regulated genes with the greatest negative log-fold change, as representative of the commonly disrupted mitotic pathways. The expression of PTPRD was lowest in family 1 and family 3. Whilst family 2/4 had relatively unperturbed PTPRD expression.
+**Figure: PTPRD/CDKN3/CDK1 expression - GENE_NAME_expr_plot.png**
 
-```{r "PTPRD expression"}
+```{r "PTPRD/CDKN3/CDK1 expression"}
 
 plot_fpkm(gene_id = "ENSG00000153707", 
           gene_name = "PTPRD", 
           gene_count_ods, 
           ATG7_patient_metadata) 
-```
-
-### Exploratory analysis
-
-#### Common outliers to M1856-17, M1111-19, and M1716-19
-
-```{r}
-
-common_outliers_M1856_M1111_M1716 <- 
-  ATG7_res_ATG7_only %>% 
-  filter(sampleID %in% c("M1856.17", "M1111.19", "M1716.19")) %>% 
-  group_by(sampleID) %>% 
-  mutate(rank = rank(padjust)) %>% 
-  group_by(geneID) %>% 
-  mutate(mean_rank = mean(rank)) %>% 
-  ungroup() %>% 
-  arrange(mean_rank) 
-
-# common outliers 
-common_outliers_M1856_M1111_M1716 %>% 
-  head(200)
-
-common_outliers_M1856_M1111_M1716 %>% 
-  head(200) %>% 
-  .[["Description"]] %>% 
-  unique()
-
-```
-
-#### Expression of other dysregulated genes from the mitotic pathway. 
-
-The top 100 significantly differentially expressed genes ordered by log-fold change:
-
-```{r}
-
-ATG7_deseq2_res %>% 
-  mutate(abs_l2fc = abs(log2FoldChange)) %>% 
-  arrange(desc(abs_l2fc)) %>% 
-  head(100)
-
-```
-
-The expression of CDKN3/CDK1 may be down-regulated. They are the top 81 and 109 down-regulated genes and are both differentially expressed with pvalues of 3.088299e-05 and 6.016993e-05 respectively. 
-
-```{r "CDKN3/CDK1 expression"}
-
-ATG7_deseq2_res %>% 
-  mutate(rank = row_number()) %>% 
-  filter(gene_symbol %in% c("CDKN3", "CDK1"))
-
 
 plot_fpkm(gene_id = "ENSG00000170312", 
-          gene_name = "CDKN3", 
+          gene_name = "CDK1", 
           gene_count_ods, 
           ATG7_patient_metadata)
 
@@ -402,34 +413,7 @@ plot_fpkm(gene_id = "ENSG00000100526",
 
 ```
 
-#### NFE2L2 expression
-
-NFE2L2 may be up-regulated in ATG7 patients. NFE2L2 is not an expression outlier and just misses the p-value cut-off for DESeq2 (p-value: 0.07). However, when plotting the expression of NFE2L2 it looks like it may be up-regulated in ATG7 patients. 
-
-```{r "NFE2L2 expression"}
-
-ATG7_res_ATG7_only %>% 
-  filter(Description == "NFE2L2")
-
-plot_fpkm(gene_id = "ENSG00000116044", 
-          gene_name = "NFE2L2", 
-          gene_count_ods, 
-          ATG7_patient_metadata)
-
-```
-
-#### RAB9A expression
-
-RAB9A expression does not look to be significantly different in the ATG7 patients compared with controls. It is neither an OUTRIDER or DESeq2 hit. 
-
-```{r "RAB9A expression"}
-
-plot_fpkm(gene_id = "ENSG00000123595", 
-          gene_name = "RAB9A", 
-          gene_count_ods, 
-          ATG7_patient_metadata)
-
-```
+<br><br>
 
 ## Aberrant splicing
 
@@ -439,12 +423,14 @@ plot_fpkm(gene_id = "ENSG00000123595",
 
 Aberrant splicing is detected in ATG7 in family 1 with a rank of 22 when using patient samples as controls (**Figure: ATG7 outlier scores - ATG7_outlier_scores_plot.png**). Sashimi plots describing the splicing changes across ATG7 demonstrate a novel acceptor position used in the family 1 which causes an exonic extension and as a consequence, a premature stop codon (**Figure: ATG7 sashimi plots - PATIENT_ID_sashimi_plot_whole_gene.png** ). For the remaining patient samples, the splicing within ATG7 was ranked above 3000 suggesting that splicing is not the pathogenic mechanism in families 2, 3 and 4. Consistent with this, no abnormal splicing events are observed in the sashimi plots in the areas surrounding the missense mutations. 
 
+<br><br>
+
 #### Tables
 
 **Table: ATG7 patient metadata - ATG7_dasper_outlier_scores.csv** 
 dasper outlier scores for the top 100 most aberrant splicing events in each patient is shown below. The full table of all dasper results can be found in the file *ATG7_dasper_outlier_scores.csv*. 
 
-```{r, "dasper"}
+```{r "dasper"}
 
 load("/home/dzhang/projects/ATG7_RNAseq/results/aberrant_splicing/dasper/outlier_scores.rda")
 
@@ -466,6 +452,8 @@ outlier_scores %>%
   write_delim(here::here("results/tables_figures/ATG7_dasper_outlier_scores.csv"), delim = ",")
 
 ```
+
+<br><br>
 
 #### Figures
 
@@ -511,7 +499,7 @@ ATG7_outlier_scores_plot
 ggsave(plot = ATG7_outlier_scores_plot, 
        filename = "ATG7_outlier_scores_plot.png", 
        path = here::here("results/tables_figures"), 
-       width = 6, 
+       width = 8, 
        height = 5)
 
 ```
@@ -559,7 +547,95 @@ knitr::include_graphics(here::here("results/tables_figures", "M1716.19_sashimi_w
 
 ```
 
-# Supplementary/intermediary analysis 
+<br><br>
+
+## Exploratory analysis
+
+### Common outliers to M1856-17, M1111-19, and M1716-19 {.tabset}
+
+#### Text
+
+There are no OUTRIDER hits in common between the 3 samples. Given that OUTRIDER is conservative, in order to find those that are most likely shared hits between the 3 samples we ranked all OUTRIDER genes in each sample. Then obtained a mean rank across samples - the lower the rank, the more commonly dysrupted the gene across the three samlples (**Table: M1856-17, M1111-19, M1716-19 common outliers - ATG7_OUTRIDER_M1856_M1111_M1716_common_outliers.csv**). 
+
+<br><br>
+
+#### Tables
+
+**Table: M1856-17, M1111-19, M1716-19 common outliers - ATG7_OUTRIDER_M1856_M1111_M1716_common_outliers.csv** 
+The below is a slice of the full table in *ATG7_OUTRIDER_M1856_M1111_M1716_common_outliers.csv*. It contains the top 100 genes that have potentially sharing between the 3 samples M1856-17, M1111-19, M1716-19. 
+
+```{r "M1856-17, M1111-19, M1716-19"}
+
+common_outliers_M1856_M1111_M1716 <- 
+  ATG7_res_ATG7_only %>% 
+  filter(sampleID %in% c("M1856.17", "M1111.19", "M1716.19")) %>% 
+  group_by(sampleID) %>% 
+  mutate(rank = rank(padjust)) %>% 
+  group_by(geneID) %>% 
+  mutate(mean_rank = mean(rank)) %>% 
+  ungroup() %>% 
+  arrange(mean_rank) 
+
+common_outliers_M1856_M1111_M1716 %>% 
+  write_delim(here::here("results/tables_figures/ATG7_OUTRIDER_M1856_M1111_M1716_common_outliers.csv"), 
+              delim = ",")
+
+common_outliers_M1856_M1111_M1716 %>% 
+  filter(!duplicated(Description)) %>% 
+  dplyr::select(Description, geneID, mean_rank) %>% 
+  head(100)
+
+```
+
+<br><br>
+
+### NFE2L2 expression {.tabset}
+
+#### Text
+
+NFE2L2 may be up-regulated in ATG7 patients. NFE2L2 is not an expression outlier and just misses the p-value cut-off for DESeq2 (p-value: 0.07). However, when plotting the expression of NFE2L2 it looks like it may be up-regulated in ATG7 patients (**Figure: NFE2L2 expression - NFE2L2_expr_plot.png**). 
+
+<br><br>
+
+#### Figures 
+
+**Figure: NFE2L2 expression - NFE2L2_expr_plot.png** 
+
+```{r "NFE2L2 expression"}
+
+plot_fpkm(gene_id = "ENSG00000116044", 
+          gene_name = "NFE2L2", 
+          gene_count_ods, 
+          ATG7_patient_metadata)
+
+```
+
+<br><br>
+
+### RAB9A expression {.tabset}
+
+#### Text
+
+RAB9A expression does not look to be significantly different in the ATG7 patients compared with controls. It is neither an OUTRIDER or DESeq2 hit (**Figure: RAB9A expression - RAB9A_expr_plot.png**). 
+
+<br><br>
+
+#### Figures
+
+**Figure: RAB9A expression - RAB9A_expr_plot.png** 
+
+```{r "RAB9A expression"}
+
+plot_fpkm(gene_id = "ENSG00000123595", 
+          gene_name = "RAB9A", 
+          gene_count_ods, 
+          ATG7_patient_metadata)
+
+```
+
+<br><br>
+
+# Supplementary/intermediary analysis {.tabset}
 
 Here sits any key analysis steps that were run, however were not part of the main results section. This is included for the purpose of reproducibility. 
 
@@ -588,7 +664,7 @@ source(here::here("scripts/aberrant_expression/get_gene_count_RSE.R"))
 
 ```
 
-## OUTRIDER intermediary plots {.tabset}
+## OUTRIDER intermediary plots
 
 These are intermediate plots returned during the OUTRIDER analysis and can be ignored unless you're interested. 
 
@@ -674,14 +750,23 @@ ATG7_analysis:/data/outlier_scores.rda \
 
 ```
 
+<br><br>
+
 # References
 
-1. RNA-SEQC - https://academic.oup.com/bioinformatics/article/28/11/1530/267467
-2. OUTRIDER - https://www.sciencedirect.com/science/article/pii/S0002929718304014?via%3Dihub
-3. DESeq2 - https://genomebiology.biomedcentral.com/articles/10.1186/s13059-014-0550-8
-4. megadepth - https://github.com/ChristopherWilks/megadepth
-5. dasper - https://github.com/dzhang32/dasper
-6. gprofiler2 - https://academic.oup.com/nar/article/47/W1/W191/5486750
+1. fastp - https://academic.oup.com/bioinformatics/article/34/17/i884/5093234
+2. STAR - https://pubmed.ncbi.nlm.nih.gov/23104886/
+3. RSeQC - https://academic.oup.com/bioinformatics/article/28/16/2184/325191
+4. RNA-SEQC - https://academic.oup.com/bioinformatics/article/28/11/1530/267467
+5. OUTRIDER - https://www.sciencedirect.com/science/article/pii/S0002929718304014?via%3Dihub
+6. DESeq2 - https://genomebiology.biomedcentral.com/articles/10.1186/s13059-014-0550-8
+7. gprofiler2 - https://academic.oup.com/nar/article/47/W1/W191/5486750
+8. dasper - https://github.com/dzhang32/dasper
+9. megadepth (R package) - https://github.com/LieberInstitute/megadepth
+10. megadepth (original) - https://github.com/ChristopherWilks/megadepth
+11. ENCODE blacklist regions - https://www.nature.com/articles/s41598-019-45839-z
+
+<br><br>
 
 # Reproducibility
 
