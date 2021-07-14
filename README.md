@@ -1,4 +1,4 @@
-# Aberrant splicing and expression analysis of mitochondrial patients with ATG7 mutations 
+# Analysis for the publication: Developmental consequences of defective ATG7-mediated autophagy in humans
 
 This repository contains the RNA-seq analysis for the publication: *[Developmental consequences of defective ATG7-mediated autophagy in humans](https://www.nejm.org/doi/full/10.1056/NEJMoa1915722)*
 
