@@ -68,9 +68,9 @@ old_theme <- theme_set(ggpubr::theme_pubr())
 ## Patient metadata
 
 **Table: ATG7 patient metadata - ATG7_patient_metadata.csv**
-The 5 patient of interest are clinically diagnosed with mitochondrial disease and genetically diagnosed with mutations in the gene ATG7. The table describes the families, patient ids and ATG7s for each patient. 
+The 5 patient of interest are genetically diagnosed with mutations in the gene ATG7. The table describes the families, patient ids and ATG7s for each patient. 
 
-```{r "patient metadata"}
+```{r "patient metadata", eval = FALSE}
 
 load(here::here("results/aberrant_expression/OUTRIDER/50_controls/gene_count_ods.rda"))
 
